@@ -33,18 +33,14 @@ def crop_to_subject_rgba(img: Image.Image, padding: int = 0) -> Image.Image:
     img = img.convert("RGBA")
     alpha = img.getchannel("A")
     bbox = alpha.getbbox()
-
     if bbox is None:
         return img
-
     left, top, right, bottom = bbox
     left = max(0, left - padding)
     top = max(0, top - padding)
     right = min(img.width, right + padding)
     bottom = min(img.height, bottom + padding)
-
     return img.crop((left, top, right, bottom))
-
 
 def make_square_canvas(img: Image.Image, size: int | None = None) -> Image.Image:
     """
@@ -64,7 +60,6 @@ def make_square_canvas(img: Image.Image, size: int | None = None) -> Image.Image
         new_h = max(1, int(h * scale))
         img = img.resize((new_w, new_h), Image.LANCZOS)
         w, h = img.size
-
     x = (side - w) // 2
     y = (side - h) // 2
     canvas.paste(img, (x, y), img)

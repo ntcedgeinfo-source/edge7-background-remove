@@ -1,4 +1,4 @@
-name: Remove Background
+name: Remove Background Portrait Square
 
 on:
   workflow_dispatch:
@@ -6,6 +6,7 @@ on:
     paths:
       - "input/**"
       - "remove_bg.py"
+      - "requirements.txt"
       - ".github/workflows/remove-background.yml"
 
 jobs:
@@ -14,27 +15,26 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
- 
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: "requirements.txt"
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install rembg pillow onnxruntime
+          pip install -r requirements.txt
 
-      - name: Remove background
+      - name: Run background remover
         run: python remove_bg.py
 
-      - name: Upload output files
+      - name: Upload processed images
         uses: actions/upload-artifact@v4
         with:
-          name: background-removed-images
+          name: portrait-square-output
           path: output/
-      - name: Commit output files
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add output/
-          git diff --cached --quiet || git commit -m "Add background-removed images"
-          git push
+          if-no-files-found: warn

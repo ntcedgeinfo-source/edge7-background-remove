@@ -1,0 +1,37 @@
+name: Remove Background
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "input/**"
+      - "remove_bg.py"
+      - ".github/workflows/remove-background.yml"
+
+jobs:
+  remove-bg:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install rembg pillow onnxruntime
+
+      - name: Remove background
+        run: python remove_bg.py
+
+      - name: Upload output files
+        uses: actions/upload-artifact@v4
+        with:
+          name: background-removed-images
+          path: output/

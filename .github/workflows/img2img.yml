@@ -1,75 +1,36 @@
-name: Run Img2Img From Repo File
+name: Remove Background From Repo Image
 
 on:
   workflow_dispatch:
 
 jobs:
-  generate:
+  remove-bg:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Check input file
-        run: |
-          pwd
-          ls -la
-          ls -la input
-          file input/download.jpeg
-
-      - name: Build JSON payload
+      - name: Build raw GitHub image URL
+        id: vars
         shell: bash
         run: |
-          mkdir -p output
-
-          python3 - <<'PY'
-          import base64
-          import json
-          
-          with open("input/download.jpeg", "rb") as f:
-              image_b64 = base64.b64encode(f.read()).decode("utf-8")
-          
-          payload = {
-              "prompt": "keep the subject exactly the same, remove the background, and place the person on a clean white studio background",
-              "imageBase64": image_b64,
-              "negative_prompt": "blurry, low quality, distorted, changed face, altered clothes, extra person, cartoon, painting",
-              "strength": 0.2,
-              "guidance": 7.5,
-              "num_steps": 20,
-              "width": 768,
-              "height": 768,
-              "seed": 12345
-          }
-          
-          with open("output/payload.json", "w", encoding="utf-8") as f:
-              json.dump(payload, f)
-          PY
-
-      - name: Validate payload
-        run: |
-          ls -lh output/payload.json
-          python3 -m json.tool output/payload.json > /dev/null
-          echo "payload.json valid"
-
-      - name: Debug worker url
-        env:
-          WORKER_URL: ${{ secrets.CF_WORKER_URL }}
-        run: |
-          echo "WORKER_URL=$WORKER_URL"
+          IMAGE_URL="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/input/download.jpeg"
+          echo "image_url=${IMAGE_URL}" >> "$GITHUB_OUTPUT"
+          echo "Using image URL: ${IMAGE_URL}"
 
       - name: Call Cloudflare Worker
         env:
           WORKER_URL: ${{ secrets.CF_WORKER_URL }}
         run: |
-          curl --fail --silent --show-error \
-            -X POST "${WORKER_URL}/generate" \
-            -H "Content-Type: application/json" \
-            --data-binary @output/payload.json \
-            -o output/result.png
+          mkdir -p output
 
-      - name: Upload generated image
+          curl --fail --silent --show-error \
+            "${WORKER_URL}/remove-background?imageUrl=${{ steps.vars.outputs.image_url }}" \
+            --output output/sample-no-bg.png
+
+      - name: Upload result
         uses: actions/upload-artifact@v4
         with:
-          name: generated-image
-          path: output/result.png
+          name: removed-background
+          path: output/sample-no-bg.png

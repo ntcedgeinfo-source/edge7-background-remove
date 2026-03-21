@@ -2,17 +2,6 @@ name: Run Img2Img From Repo File
 
 on:
   workflow_dispatch:
-    inputs:
-      prompt:
-        description: "Prompt"
-        required: true
-        type: string
-        default: "Turn this into a cyberpunk portrait"
-      input_file:
-        description: "File inside repo input folder"
-        required: true
-        type: string
-        default: "input/download.jpeg"
 
 jobs:
   generate:
@@ -22,30 +11,27 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Build JSON payload from repo image
+      - name: Check input file
+        run: |
+          pwd
+          ls -la
+          ls -la input
+          file input/sample.png
+
+      - name: Build JSON payload
         shell: bash
         run: |
           mkdir -p output
-          FILE_PATH="${{ inputs.input_file }}"
-
-          if [ ! -f "$FILE_PATH" ]; then
-            echo "File not found: $FILE_PATH"
-            exit 1
-          fi
 
           python3 - <<'PY'
           import base64
           import json
-          import os
-
-          file_path = os.environ["FILE_PATH"]
-          prompt = os.environ["PROMPT"]
-
-          with open(file_path, "rb") as f:
+          
+          with open("input/download.jpeg", "rb") as f:
               image_b64 = base64.b64encode(f.read()).decode("utf-8")
-
+          
           payload = {
-              "prompt": prompt,
+              "prompt": "Turn this into a cyberpunk portrait",
               "imageBase64": image_b64,
               "negative_prompt": "blurry, low quality, distorted",
               "strength": 0.8,
@@ -55,23 +41,34 @@ jobs:
               "height": 768,
               "seed": 12345
           }
-
+          
           with open("output/payload.json", "w", encoding="utf-8") as f:
               json.dump(payload, f)
           PY
+
+      - name: Validate payload
+        run: |
+          ls -lh output/payload.json
+          python3 -m json.tool output/payload.json > /dev/null
+          echo "payload.json valid"
+
+      - name: Debug worker url
         env:
-          FILE_PATH: ${{ inputs.input_file }}
-          PROMPT: ${{ inputs.prompt }}
+          WORKER_URL: ${{ secrets.CF_WORKER_URL }}
+        run: |
+          echo "WORKER_URL=$WORKER_URL"
 
       - name: Call Cloudflare Worker
-        shell: bash
         env:
-          WORKER_URL: ${{ secrets.CF_WORKER_URL }} 
+          WORKER_URL: ${{ secrets.CF_WORKER_URL }}
+          WORKER_API_KEY: ${{ secrets.WORKER_API_KEY }}
         run: |
-          curl -X POST "${WORKER_URL}/generate" \
-            -H "Content-Type: application/json" \ 
-            --data @output/payload.json \
-            --output output/result.png
+          curl --fail --silent --show-error \
+            -X POST "${WORKER_URL}/generate" \
+            -H "Content-Type: application/json" \
+            -H "x-api-key: ${WORKER_API_KEY}" \
+            --data-binary @output/payload.json \
+            -o output/result.png
 
       - name: Upload generated image
         uses: actions/upload-artifact@v4

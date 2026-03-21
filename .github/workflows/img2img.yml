@@ -31,7 +31,7 @@ jobs:
               image_b64 = base64.b64encode(f.read()).decode("utf-8")
           
           payload = {
-              "prompt": "Turn this into a cyberpunk portrait",
+              "prompt": "remove the background, center the subject, and turn it into a clean professional portrait",
               "imageBase64": image_b64,
               "negative_prompt": "blurry, low quality, distorted",
               "strength": 0.8,

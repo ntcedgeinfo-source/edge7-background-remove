@@ -31,10 +31,10 @@ jobs:
               image_b64 = base64.b64encode(f.read()).decode("utf-8")
           
           payload = {
-              "prompt": "remove the background, center the subject, and turn it into a clean professional portrait",
+              "prompt": "keep the subject exactly the same, remove the background, and place the person on a clean white studio background",
               "imageBase64": image_b64,
-              "negative_prompt": "blurry, low quality, distorted",
-              "strength": 0.8,
+              "negative_prompt": "blurry, low quality, distorted, changed face, altered clothes, extra person, cartoon, painting",
+              "strength": 0.2,
               "guidance": 7.5,
               "num_steps": 20,
               "width": 768,

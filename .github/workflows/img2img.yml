@@ -12,7 +12,7 @@ on:
         description: "File inside repo input folder"
         required: true
         type: string
-        default: "input/sample.png"
+        default: "input/download.jpeg"
 
 jobs:
   generate:
@@ -22,10 +22,10 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Convert input image to base64
-        id: img
+      - name: Build JSON payload from repo image
         shell: bash
         run: |
+          mkdir -p output
           FILE_PATH="${{ inputs.input_file }}"
 
           if [ ! -f "$FILE_PATH" ]; then
@@ -33,21 +33,20 @@ jobs:
             exit 1
           fi
 
-          IMAGE_B64=$(base64 -w 0 "$FILE_PATH")
-          echo "image_b64=$IMAGE_B64" >> "$GITHUB_OUTPUT"
+          python3 - <<'PY'
+          import base64
+          import json
+          import os
 
-      - name: Call Cloudflare Worker
-        shell: bash
-        env:
-          WORKER_URL: ${{ secrets.CF_WORKER_URL }}
-        run: |
-          mkdir -p output
+          file_path = os.environ["FILE_PATH"]
+          prompt = os.environ["PROMPT"]
 
-          curl -X POST "${WORKER_URL}/generate" \
-            -H "Content-Type: application/json" \
-            -d '{
-              "prompt": "${{ inputs.prompt }}",
-              "imageBase64": "${{ steps.img.outputs.image_b64 }}",
+          with open(file_path, "rb") as f:
+              image_b64 = base64.b64encode(f.read()).decode("utf-8")
+
+          payload = {
+              "prompt": prompt,
+              "imageBase64": image_b64,
               "negative_prompt": "blurry, low quality, distorted",
               "strength": 0.8,
               "guidance": 7.5,
@@ -55,7 +54,23 @@ jobs:
               "width": 768,
               "height": 768,
               "seed": 12345
-            }' \
+          }
+
+          with open("output/payload.json", "w", encoding="utf-8") as f:
+              json.dump(payload, f)
+          PY
+        env:
+          FILE_PATH: ${{ inputs.input_file }}
+          PROMPT: ${{ inputs.prompt }}
+
+      - name: Call Cloudflare Worker
+        shell: bash
+        env:
+          WORKER_URL: ${{ secrets.CF_WORKER_URL }} 
+        run: |
+          curl -X POST "${WORKER_URL}/generate" \
+            -H "Content-Type: application/json" \ 
+            --data @output/payload.json \
             --output output/result.png
 
       - name: Upload generated image

@@ -1,0 +1,65 @@
+name: Run Img2Img From Repo File
+
+on:
+  workflow_dispatch:
+    inputs:
+      prompt:
+        description: "Prompt"
+        required: true
+        type: string
+        default: "Turn this into a cyberpunk portrait"
+      input_file:
+        description: "File inside repo input folder"
+        required: true
+        type: string
+        default: "input/sample.png"
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Convert input image to base64
+        id: img
+        shell: bash
+        run: |
+          FILE_PATH="${{ inputs.input_file }}"
+
+          if [ ! -f "$FILE_PATH" ]; then
+            echo "File not found: $FILE_PATH"
+            exit 1
+          fi
+
+          IMAGE_B64=$(base64 -w 0 "$FILE_PATH")
+          echo "image_b64=$IMAGE_B64" >> "$GITHUB_OUTPUT"
+
+      - name: Call Cloudflare Worker
+        shell: bash
+        env:
+          WORKER_URL: ${{ secrets.CF_WORKER_URL }}
+        run: |
+          mkdir -p output
+
+          curl -X POST "${WORKER_URL}/generate" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "prompt": "${{ inputs.prompt }}",
+              "imageBase64": "${{ steps.img.outputs.image_b64 }}",
+              "negative_prompt": "blurry, low quality, distorted",
+              "strength": 0.8,
+              "guidance": 7.5,
+              "num_steps": 20,
+              "width": 768,
+              "height": 768,
+              "seed": 12345
+            }' \
+            --output output/result.png
+
+      - name: Upload generated image
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-image
+          path: output/result.png

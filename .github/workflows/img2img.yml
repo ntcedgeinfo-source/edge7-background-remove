@@ -16,7 +16,7 @@ jobs:
           pwd
           ls -la
           ls -la input
-          file input/sample.png
+          file input/download.jpeg
 
       - name: Build JSON payload
         shell: bash
@@ -61,12 +61,10 @@ jobs:
       - name: Call Cloudflare Worker
         env:
           WORKER_URL: ${{ secrets.CF_WORKER_URL }}
-          WORKER_API_KEY: ${{ secrets.WORKER_API_KEY }}
         run: |
           curl --fail --silent --show-error \
             -X POST "${WORKER_URL}/generate" \
             -H "Content-Type: application/json" \
-            -H "x-api-key: ${WORKER_API_KEY}" \
             --data-binary @output/payload.json \
             -o output/result.png
 
